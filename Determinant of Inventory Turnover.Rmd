@@ -1,0 +1,720 @@
+---
+title: "Determinants of Inventory Turnover"
+output: pdf_document
+date: "2026-03-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,    
+  warning = FALSE,   
+  message = FALSE
+)
+```
+
+```{r}
+library(lubridate)
+library(dplyr)
+library(plm)
+library(car)
+library(DescTools)
+library(panelAR)
+library(sandwich)
+library(lmtest)
+library(readr)
+library(panelView)
+library(ggplot2)
+library(corrplot)
+library(patchwork)
+library(knitr)
+library(stargazer)
+```
+
+```{r}
+# AIC function
+aic_plm <-  function(model){
+  n <- nrow(model$model)
+  resid <- residuals(model)
+  rss <- sum(resid^2)
+  p <- length(coef(model))
+  aic <- n * log(rss/n) + 2 * (p + 1)
+  return(aic)
+}
+```
+
+
+```{r}
+# sic: 5621, 5531, 5600, 5651, 5700, 5945, 5940, 5944, 5661, 5900, 5731, 5399, 5734, 5311
+df = read.csv("df_cleaned2.csv")
+dfp = pdata.frame(df, index= c("tic","fyear"))
+vars = c("ln_invt_turnover", "ln_cap_int", "ln_sale_growth", "ln_gpm","ln_sale")
+```
+
+# Abstract
+
+This study examines whether the classical determinants of inventory turnover rate, such as gross profit margin, capital intensity, and sales growth, remain statistically effective in contemporary consumer retail sector. Our primary motivation of this research is to utilize recent data to verify whether the previously identified classical determinants of inventory turnover remain consistent in today's scenario, aiming to provide relevant, practical implications for contemporary retail enterprises navigating a rapidly evolving, post-digital landscape. Building on the foundational log-log model established by Gaur, Fisher, and Raman (2005), we employ a panel data framework with two-way fixed effects using annual financial data from 51 publicly traded U.S. consumer retailers across 14 SIC industries from 2011 to 2024, sourced from Wharton Research Data Service (WRDS). 
+
+Our findings confirm that gross profit margin, capital intensity, and sales growth remain significant predictors of inventory turnover, though the nature of these relationships has evolved over time. Capital intensity exhibits a non-linear, concave relationship with inventory turnover that differs from earlier literature. While this pattern is consistent with the narrative that asset light firms may be better positioned in today's retail landscape, it may also reflect changes in firm composition or industry mix within the sample. The positive effect of sales growth on inventory turnover suggests that current brick-and-mortar retailers may not have the capacity to grasp an opportunity when presents. The negative effect of gross profit margin is moderated by firm size, consistent with economies of scale. These results suggest that while the foundational model remains relevant, the retail sector's structural transformation over the past decade has meaningfully altered the mechanisms through which this financial metrics influence inventory performance.
+
+# Introduction
+
+Inventory turnover is an important measure of operational efficiency and management performance in the retail industry that is the speed at which a firm sells inventory and replenishes it within a specific time frame. Previous research has focused on how financial and operational influences affect inventory turnover using panel data approaches. The foundational work by Gaur et al. (2005) developed a framework that incorporates fixed effects for both firm and year and demonstrated that multiplicative relationships among variables can be transformed into additive forms. Their study also found that the relationships between the raw values are not linear, which is common in financial data. To fix it, they employed a log-log model specification that linearizes the relationship between  ITO and independent variables. These findings provide a standard benchmark model for future studies.
+
+Using the same framework, later studies have extended the methodology of measuring inventory turnover along with the associated empirical context. Gaur and Kesavan (2007) adopted a similar modelling approach and further investigated dynamic inventory turnover patterns for the retail sector, finding that greater levels of sales growth lead to reducing the average inventory levels, thereby increasing the turnover. This finding was supported by Grubor, Milicevic, and Mijic (2013), who established sales growth as a statistically significant determinant of inventory turnover. However, their results were limited by sample representativeness. In addition to studying key determinants, recent studies have been conducted to enhance the inventory turnover model specification and measurement accuracy. Yousaf and Dehning (2023) proposed alternative methods to measure sales surprise in sales forecasting and concluded that sales from prior periods are unreliable predictors of future sales. They also identified serial correlation as a primary cause of bias in relation to monthly sales data and addressed this issue by adding lagged variables in their studies. Similarly, Breivik et al.(2021) extended log-log models by incorporating stochastic frontier analysis, which uses two components to evaluate inventory turnover: the efficiency frontier (benchmark) and external variables that affect firm performance.
+
+While all of these studies use a shared methodological foundation, the empirical findings are not fully consistent. The significance and direction of variables, such as capital intensity have varied across datasets and contexts. The inconsistencies across studies can probably be attributed to the differences in the market characteristics, market conditions and sample selection. Furthermore, many of the studies included in this review have used relatively dated data which raises concerns about whether previously reported relationships still exist today in the rapidly changing retail market. Given the limitations of some past studies, it is necessary to investigate the relationship between each identified determinant and inventory turnover using more current data. This study will use the established log-log modelling framework, along with other determinants of inventory turnover using data from consumer retail firms from 2011 to 2024. Based on prior literature, this study will examine whether the relationships previously identified still hold in today’s rapidly changing retail environment as a result of technological advancements and changes in business operations.
+
+# Literature Review
+In the study of Gaur, Fisher, and Raman (2005), they used panel regressions with firm and year effects to test how financial and operational factors affect turnover. Specifically, they employed a log-log model, which reflected the existing constant elasticity among variables. On top of that, the author also discovered that employing a log-log model drastically reduces square errors, on the contrary to a linear model. In 2007, Gaur and Kesavan (2007) extended this study and adopted a similar methodological approach, diving deeper into the turnover rate dynamics in the retail sector. Grubor, Milicevic, and Mijic (2013) used the framework and variable definitions built by Gaur and his colleagues to examine the retail sector in the Republic of Serbia. Despite a small sample size, the market concentration was high, which indicated that these firms were representative from the authors’ point of view. Yousaf and Dehning (2023) found that serial correction could be a major source of bias. Thus, they incorporated a lag variable to address this issue. Breivik et al. (2021) incorporated a stochastic frontier analysis (SFA) framework, assuming the firm-level difference is a dynamic process.
+
+The foundational research in this field was set by Gaur, Fisher, and Raman (2005), who established the basic model for analyzing factors that influence inventory turnover rate. Their work was pivotal as it placed a specific focus on independent variables of gross margin, capital intensity, and sales surprise, laying the groundwork for how later scholars understand the relationship between these financial metrics and inventory performance. Subsequent research sought to expand on this basic model. Gaur and Kesavan (2007) further defined and added a new key independent variable sales growth and demonstrated that it has a positive effect on inventory turnover rate. This finding was not an isolated occurrence. The conclusion regarding the significance of sales growth was further solidified by Grubor, Milicevic, and Mijic’s study, confirming its impact within the population of interest.
+
+In parallel with expanding the variables, other scholars focused on refining the original framework. Yousaf and Dehning’s study extended on Gaur’s foundation model by reevaluating how specific metrics were calculated. While Gaur, Fisher, and Raman (2005) originally defined Sales Surprise using predicted sales, Yousaf and Dehning refined the definition of Sales Surprise for greater accuracy. They utilized the sales random walk forecast method, operating on the premise that past sales should not have predictive power on forecasting future sales surprise.
+
+Most recently, Breivik et al. (2021) provided a sophisticated update to these models by addressing the nuances of performance measurement. They treat entity difference as a dynamic process rather than time-invariant. Moreover, they also break the residuals down into external stochastic noise and internal inefficiency noise. Compared to the traditional Fixed Effect approach, this model is more realistic in some context. By incorporating stochastic process while simultaneously considering the innate ability of each entity, this approach provides a much more robust analysis of the factors that influence inventory turnover rate. Nevertheless, the dynamic learning assumption could be too ideal, especially to large corporate ecosystems. Organizational inertia is notoriously resistant in large firms, which hampers the assumed adaptability.
+
+One conflict is that the empirical results of subsequent studies vary. For example, in Grubor, Milicevic, and Mijic's study, the data indicated that capital intensity was not statistically significant. In contrast, Yousaf and Dehning's study found that capital intensity was statistically significant at the 1% significance level. Even if the coefficient on capital intensity in those studies that revealed a statistically significant correlation, the direction differed. This divergence is likely caused by the specific market conditions that the unit of analysis faced in each respective study, such as differences in industry sectors or economic environments. Ultimately, this reflects that such inconsistency is an inevitable variation that is common in the social science field, where context often determines the weight of independent variables.
+
+Over the last 10 years, the retail world’s landscape has shifted drastically. Nevertheless, the studies of inventory turnover rate in retail sector in the United States were conducted before 2010. The more recent studies focused on retail sectors in other countries, manufacturing, or a narrow industry like home improvement, which does not reflect a micro picture of contemporary brick-and-mortar retail world. In our study, we will examine this log-log model framework using contemporary data from 2011 to 2024 in the consumer retail sector in the United States to test our hypothesis: we believe the results of previous literature still hold despite a tremendous change in the business world due to technological advancements, but we anticipate differences in magnitude and direction.
+
+# Methodology
+
+## Source of data
+
+In this study, we utilized Wharton Research Data Service to retrieve secondary data of publicly traded companies in consumer retails sector between the year of 2011 to 2024. Specifically, we acquired their annual financial reports and use them to derive variables and conduct data analysis. Our sample randomly selected 51 firms through simple random sampling to ensure we capture the macro view of the retail sector.
+
+```{r}
+firms = cbind(df$conm, df$sic)
+firms = firms[duplicated(firms) == FALSE,]
+firms = data.frame(firms)
+colnames(firms) = c("Firm", "SIC")
+sic_count = data.frame(table(firms$SIC))
+colnames(sic_count) = c("SIC", "The Number of Firms From Each SIC")
+kable(sic_count)
+```
+
+
+## Model Variables
+
+Inventory turnover rate is the dependent variable of our study. Following other previous scholars who study this topic, our primary independent variables are gross profit margin, capital intensity, and sales growth. We also incorporate $Sales_{it}$, $CurrentLiability_{it}$ and $Intangible_{it}$ to control for the effect of economies of scale, fire sale theory and intellectual properties. The definition of these primary variables that we study is the following:
+
+$ln(InventoryTurnover_{it})=ln(\frac{CostOfGoodsSold_{it}}{AverageInventory_{it}})$
+
+$AverageInventory_{it}=\frac{BeginningInventory_{it}+EndingInventory_{it}}{2}$
+
+$ln(GrossProfitMargin_{it})=ln(\frac{TotalRevenue_{it}-CostOfGoodsSold_{it}}{TotalRevenue_{it}})$
+
+$ln(CapitalIntensity_{it})=ln(\frac{WorkingAssets_{it}}{TotalAssets_{it}})$
+
+$ln(SalesGrowth_{it})=ln(\frac{TotalRevenue_{it}}{TotalRevenue_{i,t-1}})$
+
+```{r, include=TRUE}
+descriptive = rbind(sapply(dfp[c("ln_invt_turnover","ln_gpm","ln_sale_growth","ln_cap_int","ln_sale")], function(x) summary(x)),
+                    "Std.Dev" = sapply(dfp[c("ln_invt_turnover","ln_gpm","ln_sale_growth","ln_cap_int","ln_sale")], function(x) sd(x, na.rm=TRUE)))
+colnames(descriptive) = c("ln(Inventory Turnover Rate)",
+                          "ln(Gross Profit Margin)",
+                          "ln(Sales Growth)",
+                          "ln(Capital Intensity)",
+                          "ln(Annual Sales ($))")
+kable(descriptive)
+```
+
+```{r}
+par(mfrow = c(2, 3))
+hist(dfp$ln_invt_turnover, freq = FALSE,
+     xlab = "ln(Inventory Turnover Rate)",
+     main = "")
+hist(dfp$ln_gpm, freq = FALSE,
+     xlab = "ln(Gross Profit Margin)",
+     main = "")
+hist(dfp$ln_sale_growth, freq = FALSE,
+     xlab = "ln(Sales Growth)",
+     main = "")
+hist(dfp$ln_cap_int, freq = FALSE,
+     xlab = "ln(Captial Intensity)",
+     main = "")
+hist(dfp$ln_sale, freq = FALSE,
+     xlab = "ln(Annual Sales ($))",
+     main = "")
+```
+
+
+
+```{r}
+# Inventory Turnover Rate
+plot1 = dfp %>%
+  group_by(fyear) %>%
+  summarize(
+    median_turnover = median(ln_invt_turnover, na.rm = TRUE),
+    lower = quantile(ln_invt_turnover, 0.25, na.rm = TRUE),
+    upper = quantile(ln_invt_turnover, 0.75, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(fyear_num = as.numeric(as.character(fyear))) %>%
+  ggplot(aes(x = fyear_num, y = median_turnover)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "royalblue", alpha = 0.15) +
+  geom_line(color = "royalblue", linewidth = 1.2) +   
+  geom_point(color = "darkblue", size = 2.5) +          
+  theme_bw() +
+  labs(
+    x = "Fiscal Year",
+    y = "Median ln(Inventory Turnover)")
+# Capital Intensity
+plot2 = dfp %>%
+  group_by(fyear) %>%
+  summarize(
+    median_cap_int = median(ln_cap_int, na.rm = TRUE),
+    lower = quantile(ln_cap_int, 0.25, na.rm = TRUE),
+    upper = quantile(ln_cap_int, 0.75, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(fyear_num = as.numeric(as.character(fyear))) %>%
+  ggplot(aes(x = fyear_num, y = median_cap_int)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "royalblue", alpha = 0.15) +
+  geom_line(color = "royalblue", linewidth = 1.2) +   
+  geom_point(color = "darkblue", size = 2.5) +          
+  theme_bw() +
+  labs(
+    x = "Fiscal Year",
+    y = "Median ln(Capital Intensity)")
+# Gross Profit Margin
+plot3 = dfp %>%
+  group_by(fyear) %>%
+  summarize(
+    median_gpm = median(ln_gpm, na.rm = TRUE),
+    lower = quantile(ln_gpm, 0.25, na.rm = TRUE),
+    upper = quantile(ln_gpm, 0.75, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(fyear_num = as.numeric(as.character(fyear))) %>%
+  ggplot(aes(x = fyear_num, y = median_gpm)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "royalblue", alpha = 0.2) +
+  geom_line(color = "royalblue", linewidth = 1.2) +   
+  geom_point(color = "darkblue", size = 3) +          
+  theme_bw() +
+  labs(
+    x = "Fiscal Year",
+    y = "Median ln(Gross Profit Margin)")
+# Sales Growth
+plot4 = dfp %>%
+  group_by(fyear) %>%
+  summarize(
+    median_sale_growth = median(ln_sale_growth, na.rm = TRUE),
+    lower = quantile(ln_sale_growth, 0.025, na.rm = TRUE),
+    upper = quantile(ln_sale_growth, 0.975, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  ggplot(aes(x = as.numeric(as.character(fyear)), y = median_sale_growth)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "royalblue", alpha = 0.2) +
+  geom_line(color = "royalblue", linewidth = 1.2) +   
+  geom_point(color = "darkblue", size = 3) +          
+  theme_bw() +
+  labs(x = "Fiscal Year",
+       y = "Median ln(Sales Growth)",)
+
+(plot1 | plot2) / (plot3 | plot4)
+
+```
+The jump in ln(CapitalIntensity) is likely due to the new accounting standard announced by the Financial Accounting Standards Board's (2016) that is strictly enforced in 01/01/2019 that leases with terms exceeding 12 months are required to be reported in the balance sheets, which yields the drastic increase in asset. Consequently, the capital intensity increases. 
+
+
+```{r}
+plot5 = dfp %>% 
+  group_by(year) %>% 
+  summarize(mean_at = mean(at)) %>% 
+  ggplot(aes(x = as.numeric(as.character(year)), y = mean_at)) +
+  geom_line(color = "royalblue", linewidth = 1.2) +   
+  geom_point(color = "darkblue", size = 3) +          
+  theme_bw() +
+  labs(x = "Fiscal Year",
+       y = "Mean Asset (Equal Weight)",)
+
+plot6 = dfp %>% 
+  group_by(year) %>% 
+  summarize(mean_invt = mean(invt)) %>% 
+  ggplot(aes(x = as.numeric(as.character(year)), y = mean_invt)) +
+  geom_line(color = "royalblue", linewidth = 1.2) +   
+  geom_point(color = "darkblue", size = 3) +          
+  theme_bw() +
+  labs(x = "Fiscal Year",
+       y = "Mean Inventory (Equal Weight)",)
+
+plot7 = dfp %>% 
+  group_by(year) %>% 
+  summarize(mean_atinvt = mean(at - invt)) %>% 
+  ggplot(aes(x = as.numeric(as.character(year)), y = mean_atinvt)) +
+  geom_line(color = "royalblue", linewidth = 1.2) +   
+  geom_point(color = "darkblue", size = 3) +          
+  theme_bw() +
+  labs(x = "Fiscal Year",
+       y = "Mean Asset - Inventory (Equal Weight)",)
+plot7|plot5/plot6
+```
+
+To ensure stationarity, we conducted Maddala-Wu Unit-Root tests on each variables and use AIC to determine the number of lag being tested to ensure our model is not biased by non-stationarity. Following is the hypothesis test we conducted:
+
+$H_0$: There is unit root
+
+$H_a$: No unit root (stationarity)
+
+```{r}
+ur_aic = sapply(vars, function(x){
+  result = purtest(dfp[[x]],
+                 test="madwu",
+                 lags="AIC",
+                 exo="intercept",
+                 pmax = 2)
+  p = result$statistic$p.value
+  stat = result$statistic$statistic
+  ur_summary = cbind(p, stat)
+  return(ur_summary)
+})
+
+ur_result <- data.frame(ur_aic)
+
+colnames(ur_result) = c("ln(Inventory Turnover Rate)",
+                          "ln(Capital Intensity)",
+                          "ln(Sales Growth)",
+                          "ln(Gross Profit Margin)",
+                          "ln(Annual Sales ($))")
+rownames(ur_result) = c("P-Value", "Test Statistic")
+
+kable(ur_result)
+```
+
+The results revealed that all variables have p-values smaller than 0.0001, which suggests that we reject the null and favor the alternative hypothesis at both 5% and 1% significance level. Thus, the regression result is appropriate and robust.
+
+## Variable Correlation
+```{r}
+df_vars = df[,vars]
+corr = cor(df_vars)
+corrplot(corr, method="color",type="upper")
+```
+For the correlation matrix, we compute the correlation using Pearson's correlation as all variables are continuous numerical. The plot suggests that there is likely no serious multicollinearity issue, and we will examine it in our model diagnostic section through Variance Inflation Factor (VIF). The plot also suggests that the correlation between ln(InventoryTurnover) is not as strong in a bivariate case. 
+
+```{r}
+par(mfrow = c(2, 2))
+set.seed(42)
+sample_plot = sample(df$conm, 5)
+plot_df1 = df[df$conm == sample_plot[1],]
+plot_df2 = df[df$conm == sample_plot[2],]
+plot_df3 = df[df$conm == sample_plot[3],]
+plot_df4 = df[df$conm == sample_plot[4],]
+plot_df5 = df[df$conm == sample_plot[5],]
+
+# ln(Inventory Turnover) vs ln(Capital Intensity)
+plot(plot_df1$ln_invt_turnover ~ plot_df1$ln_cap_int, col = 'red', pch = 16,
+     xlim = c(min(dfp$ln_cap_int), max(dfp$ln_cap_int)),
+     ylim = c(min(dfp$ln_invt_turnover), max(dfp$ln_invt_turnover)),
+     xlab = "ln(Capital Intensity)",
+     ylab = "ln(Inventory Turnover)",
+     main = "Inventory Turnover vs Capital Intensity")
+points(plot_df2$ln_cap_int, plot_df2$ln_invt_turnover, col = 'blue', pch = 17)
+points(plot_df3$ln_cap_int, plot_df3$ln_invt_turnover, col = 'green', pch = 18)
+points(plot_df4$ln_cap_int, plot_df4$ln_invt_turnover, col = 'pink', pch = 19)
+points(plot_df5$ln_cap_int, plot_df5$ln_invt_turnover, col = 'orange', pch = 20)
+
+# ln(Inventory Turnover) vs ln(Sales Growth)
+plot(plot_df1$ln_invt_turnover ~ plot_df1$ln_sale_growth, col = 'red', pch = 16,
+     xlim = c(min(dfp$ln_sale_growth), max(dfp$ln_sale_growth)),
+     ylim = c(min(dfp$ln_invt_turnover), max(dfp$ln_invt_turnover)),
+     xlab = "ln(Sales Growth)",
+     ylab = "ln(Inventory Turnover)",
+     main = "Inventory Turnover vs Sales Growth")
+points(plot_df2$ln_sale_growth, plot_df2$ln_invt_turnover, col = 'blue', pch = 17)
+points(plot_df3$ln_sale_growth, plot_df3$ln_invt_turnover, col = 'green', pch = 18)
+points(plot_df4$ln_sale_growth, plot_df4$ln_invt_turnover, col = 'pink', pch = 19)
+points(plot_df5$ln_sale_growth, plot_df5$ln_invt_turnover, col = 'orange', pch = 20)
+
+# ln(Inventory Turnover) vs ln(Gross Profit Margin)
+plot(plot_df1$ln_invt_turnover ~ plot_df1$ln_gpm, col = 'red', pch = 16,
+     xlim = c(min(dfp$ln_gpm), max(dfp$ln_gpm)),
+     ylim = c(min(dfp$ln_invt_turnover), max(dfp$ln_invt_turnover)),
+     xlab = "ln(Gross Profit Margin)",
+     ylab = "ln(Inventory Turnover)",
+     main = "Inventory Turnover vs Gross Profit Margin")
+points(plot_df2$ln_gpm, plot_df2$ln_invt_turnover, col = 'blue', pch = 17)
+points(plot_df3$ln_gpm, plot_df3$ln_invt_turnover, col = 'green', pch = 18)
+points(plot_df4$ln_gpm, plot_df4$ln_invt_turnover, col = 'pink', pch = 19)
+points(plot_df5$ln_gpm, plot_df5$ln_invt_turnover, col = 'orange', pch = 20)
+
+# ln(Inventory Turnover) vs ln(Sales)
+plot(plot_df1$ln_invt_turnover ~ plot_df1$ln_sale, col = 'red', pch = 16,
+     xlim = c(min(dfp$ln_sale), max(dfp$ln_sale)),
+     ylim = c(min(dfp$ln_invt_turnover), max(dfp$ln_invt_turnover)),
+     xlab = "ln(Sales)",
+     ylab = "ln(Inventory Turnover)",
+     main = "Inventory Turnover vs Sales")
+points(plot_df2$ln_sale, plot_df2$ln_invt_turnover, col = 'blue', pch = 17)
+points(plot_df3$ln_sale, plot_df3$ln_invt_turnover, col = 'green', pch = 18)
+points(plot_df4$ln_sale, plot_df4$ln_invt_turnover, col = 'pink', pch = 19)
+points(plot_df5$ln_sale, plot_df5$ln_invt_turnover, col = 'orange', pch = 20)
+```
+
+Visually, the scatterplots aligns with the correlation matrix. However, it is worth noting that bivariate scatterplot and correlation matrix could be deceptive, in which variables could behave differently in a highly dimensional space.
+
+## Test of Hypothesis
+
+This this study, we hypothesize that the previously proven correlation are still statistically significant in today's business world. Additionally, we anticipate a change in direction, especially the coefficient on ln(Capital Intensity) since the the retail landscape has shifted from "stack them high, watch them fly" to a lighter business strategy to handle the constantly changing technology.
+
+## Model specification
+
+Following Gaur et al. (2005) and other scholars, we will adopted a panel data analysis framework and fixed effects. This model allowed us to eliminate bias caused by between-retailer variation and estimate a more accurate correlation between the dependent and independent variables. On top of that, we anticipated and identified serial correlation. To address it, we employed the same approach Yousaf and Dehning (2023) did this their study, incorporating a lag variable in the model to control for the serial correlation (Dynamic Panel Model). In addition, we also built a Prais-Winsten model, assuming there are AR(1) process in the residuals, to see how the result would change under different assumptions.
+
+### Pool Model
+$ln(InventoryTurnover_{i}) = \beta_0 +\beta_1\ln(GrossMargin_{i})+\beta_2ln(CapitalIntensity_{i})+\beta_3\ln(SalesGrowth_{i})+\beta_4ln(Sales_{i})+\beta_5(ln(CapitalIntensity_{i}))^2 + \zeta_{i}$
+
+where $\zeta_{i}$ is the noise.
+
+### Fixed Effects Model
+$ln(InventoryTurnover_{it}) = \gamma_1\ln(GrossMargin_{it})+\gamma_2ln(CapitalIntensity_{it})+\gamma_3\ln(SalesGrowth_{it})+\gamma_4ln(Sales_{it})+\gamma_5(ln(CapitalIntensity_{it}))^2 +\phi_1ln(InventoryTurnover_{i,t-1}) + \sum_{t=2}^{T} \delta_t YearDummy_t + c_i + \epsilon_{it}$
+
+where $c_i$ is the unobserved, time-invariant effects of each entity and $\epsilon_{it}$ is the noise.
+
+### Prais-Winsten Model
+
+$ln(InventoryTurnover_{it})^* = \alpha_0^* + \alpha_1\ln(GrossMargin_{it})^* + \alpha_2\ln(CapitalIntensity_{it})^* + \alpha_3\ln(SalesGrowth_{it})^* + \alpha_4\ln(Sales_{it})^* + \alpha_5(\ln(CapitalIntensity_{it}))^{*2}+ \sum_{t=2}^{T} \lambda_t (YearDummy_t)^* + c_i^* + u_{it}$
+
+where the variables denoted with an asterisk ($^*$) represent the Prais-Winsten transformed variables to correct for AR(1) serial correlation ($\epsilon_{it} = \rho \epsilon_{i,t-1} + u_{it}$). The transformation is defined as:
+
+For $t = 1$: $V_{i1}^* = \sqrt{1 - \rho^2} V_{i1}$
+For $t > 1$: $V_{it}^* = V_{it} - \rho V_{i,t-1}$
+
+Where $u_{it}$ is the idiosyncratic white noise error term, and $c_i^*$ is the transformed time-invariant fixed effect.
+
+
+```{r}
+pooled_model_full = plm(ln_invt_turnover ~ poly(ln_cap_int, 2, raw=T)
+                        + ln_sale_growth
+                        + ln_gpm
+                        + ln_sale
+                        + lag(ln_invt_turnover,1),
+                          data = dfp,
+                          model = "pooling")
+
+fe_model_nolag = plm(ln_invt_turnover ~ poly(ln_cap_int, 2, raw=T)
+                        + ln_sale_growth
+                        + ln_gpm
+                        + ln_sale,
+                          data = dfp,
+                          model ="within",
+                          effect = "twoways")
+
+fe_model_full = plm(ln_invt_turnover ~ poly(ln_cap_int, 2, raw=T)
+                        + ln_sale_growth
+                        + ln_gpm
+                        + ln_sale
+                        + lag(ln_invt_turnover,1),
+                          data = dfp,
+                          model ="within",
+                          effect = "twoways")
+
+re_model_full = plm(ln_invt_turnover ~ poly(ln_cap_int, 2, raw=T)
+                        + ln_sale_growth
+                        + ln_gpm
+                        + ln_sale
+                        + lag(ln_invt_turnover,1)
+                        + fyear,
+                          data = dfp,
+                          model ="random",
+                          effect = "individual",
+                          random.method = "walhus")
+
+pw_model_full = panelAR(ln_invt_turnover ~ poly(ln_cap_int, 2, raw=T)
+                        + ln_sale_growth
+                        + ln_gpm
+                        + ln_sale
+                        + as.factor(gvkey)
+                        + as.factor(year),
+                           data = dfp,
+                           panelVar = "gvkey",
+                           timeVar = "year", 
+                           autoCorr = "ar1",
+                           panelCorrMethod = "phet",
+                           bound.rho = FALSE,
+                           rho.na.rm = TRUE,
+                           complete.case = TRUE) 
+
+```
+
+
+## Model Diagnostics
+
+```{r}
+residuals_nolag = fe_model_nolag$residuals
+residuals_full = fe_model_full$residuals
+```
+
+In our main model, the variable lag 1 is statistically significant. We use Panel Breusch-Godfrey Test to check if the residuals are still serially correlated with the following hypothesis.
+
+$H_0$: There is no panel-level serial correction
+
+$H_a$: Panel-level serial correction exists
+
+```{r}
+bg = data.frame("test statistic" = pbgtest(fe_model_full)$statistic,
+                "p-value" = pbgtest(fe_model_full)$p.value)
+kable(bg)
+```
+
+
+The p-value is smaller than 0.0001, we reject the null hypothesis at 5% significance level. In other words, serial correlation exists in the residuals.
+
+Heteroscedasticity is examined through Breusch-Pagan test.
+```{r}
+bp = data.frame("test-statistic" = bptest(fe_model_full)$statistic, "p-value" = bptest(fe_model_full)$p.value)
+kable(bp)
+```
+$H_0$: Variance is constant
+
+$H_a$: Heteroscedasticity exists
+
+The result suggests that at least one variance is not constant across all level of independent variables, which indicates that the standard error is biased. To ensure valid inference, we adopt Clustered Standard Error to correct for both serial correlation and heteroscedasticity.
+
+We also conducted Hausman test to decide between fix effects and random effects. The hypothesis test we conducted is the following:
+
+$H_0$: $c_i$ and $X_i$ are not correlated
+
+$H_a$: not $H_0$
+
+```{r}
+hausman = data.frame("test.statistic" = phtest(fe_model_full, re_model_full)$statistic,
+                       "p-value" = phtest(fe_model_full, re_model_full)$p.value)
+rownames(hausman) = "Hausman Test"
+kable(hausman)
+```
+
+
+The result (p<0.0001) suggests that we should reject the null hypothesis, and random effect is not consistent. Therefore, we favor the fixed effects model.
+
+In addition, multicollinearity is checked by using variance inflation factor (VIF). 
+```{r}
+X_matrix <- model.matrix(fe_model_full) 
+y_vector <- pmodel.response(fe_model_full)
+vif_data <- as.data.frame(X_matrix)
+vif_model_clean <- lm(y_vector ~ ., data = vif_data)
+vif = as.data.frame(vif(vif_model_clean))
+colnames(vif) = "VIF"
+rownames(vif) = c("ln(Capital_Intensity)", "ln(Capital_Intensity^2)", "ln(Sales_Growth)", "ln(Gross_Profit_Margin)", "ln(Annual_Sales)", "ln(Inventory_Turnover_{t-1})")
+kable(vif)
+```
+The result revealed that there is no severe multicollinearity issue that adversely influence the robustness of the result. It is worth noting that since we have non-linear relationships and interactions in our model, variables that are involved have high VIF value, which is normal and acceptable.
+
+The q-q plot suggests that our residuals are leptokurtic, but 51 entities and total 580 observation is sufficient for valid statistical inference.
+
+```{r}
+qq = qqPlot(residuals_full)
+```
+
+
+```{r}
+cor_summary_fe = coeftest(fe_model_full, vcov=vcovHC(fe_model_full, type="HC1", cluster = "group"))
+cor_coef_fe = coef(cor_summary_fe)
+cor_se_fe = cor_summary_fe[,2]
+cor_stat_fe = cor_summary_fe[,3]
+cor_p_fe = cor_summary_fe[,4]
+```
+
+```{r}
+cor_summary_re = coeftest(re_model_full, vcov=vcovHC(re_model_full, type="HC1", cluster = "group"))
+cor_coef_re = coef(cor_summary_re)[1:7]
+cor_se_re = cor_summary_re[,2]
+cor_stat_re = cor_summary_re[,3]
+cor_p_re = cor_summary_re[,4]
+```
+
+```{r}
+cor_summary_pool = coeftest(pooled_model_full, vcov=vcovHC(pooled_model_full, type="HC3"))
+cor_coef_pool = coef(cor_summary_pool)
+cor_se_pool = cor_summary_pool[,2]
+cor_stat_pool = cor_summary_pool[,3]
+cor_p_pool = cor_summary_pool[,4]
+```
+
+```{r}
+pw_summary = summary(pw_model_full)
+pw_result = pw_summary$coefficients
+pw_result = pw_result[1:6,]
+pw_coef = pw_result[,1]
+pw_se = pw_result[,2]
+pw_stat = pw_result[,3]
+pw_p = pw_result[,4]
+pw_rho = pw_summary$rho
+```
+
+```{r}
+regression_table = cbind(c("-", round(cor_coef_fe, 3)),
+ round(cor_coef_re, 3),
+ round(cor_coef_pool, 3),
+ c(round(pw_coef, 3), "-"))
+rownames(regression_table) = c("Intercept", "ln(CapitalIntensity)", 
+                               "ln(CapitalIntensity)^2", "ln(SalesGrowth)",
+                               "ln(GrossProfitMargin)", "ln(AnnualSales)", 
+                               "ln(InventoryTurnover_{t-1})")
+colnames(regression_table) = c("FE", "RE", "Pooled", "PW")
+
+
+stargazer(pooled_model_full, fe_model_full, re_model_full,
+          type = "text",
+          title = "Panel Regression Results",
+          column.labels = c("Pooling OLS", "Fixed Effects", "Random Effects"),
+          omit = "fyear")
+```
+
+### Prais-Winston Model
+```{r}
+pw_result
+```
+
+Under different assumptions, the direction of the coefficients on all variables is consistent. To determine the primary model, we compute the AIC for each model and choose the one with the lowest value.
+
+```{r}
+model_aic = data.frame(
+  cbind(c("FE Model", "RE Model", "Pooled Model", "PW Model"),
+  c(aic_plm(fe_model_full),
+    aic_plm(re_model_full),
+    aic_plm(pooled_model_full),
+    aic_plm(pw_model_full))))
+
+colnames(model_aic) = c("Model", "AIC")
+kable(model_aic)
+```
+
+The FE model (-2400.5) has the smallest AIC value, which suggests that it is the best among the the set of candidate models. Therefore, we will use it as our main model.
+
+# Empirical Results
+
+## Interpretation
+
+$$ln(InventoryTurnover_{it}) = \gamma_0 + \gamma_1\ln(GrossMargin_{it})+\gamma_2ln(CapitalIntensity_{it})+\gamma_3\ln(SalesGrowth_{it})+\gamma_4ln(Sales_{it})+\gamma_5(ln(CapitalIntensity_{it}))^2 +\phi_1ln(InventoryTurnover_{i,t-1}) + \sum_{i=1}^{t} \delta_i YearDummy_t + c_i + \epsilon_{it}$$
+
+```{r}
+cor_summary_fe
+```
+
+This is a log-log model. Therefore, the coefficient on each variable, $\gamma_i$, is the elasticity of y with respect to x, which suggests that 1% increase in x is associated with a $\beta_1$% change in y. The overall fit of the model is statistically significant (p<0.000). All coefficients of our primary independent variables are also statistically different from 0 at 5% significance level.
+
+### Capital Intensity
+
+The coefficient on capital intensity and capital intensity square are -0.422 (p<0.0001) and -0.104 (p<0.0001), respectively. We take derivative with respect to ln(Capital Intensity) to get the marginal effect. On average, evaluated at the sample mean of capital intensity, a 1% increase in capital intensity is associated with $-0.422 - 0.208ln(CapitalIntensity_i)$% change in inventory turnover rate, ceteris paribus. 
+
+The result discloses a non-linear relationship between capital intensity and inventory turnover rate. Accessing the non-static marginal effect of capital intensity, since the coefficient of quadratic term is negative, this elasticity continuously decays.
+
+```{r}
+ci_function = function(x){
+  -0.422*log(x) - 0.104*log(x)^2
+}
+
+curve(ci_function, 
+      from = 0.1, 
+      to = 3, 
+      col = "blue", 
+      lwd = 2,
+      xlab = "Capital Intensity", 
+      ylab = "Predicted ln(Inventory Turnover)")
+```
+
+
+This result unearth a inconsistent nature of business over the last two decades. Grubor and his colleagues (2013) found out that despite the coefficient being positive, it was not statically significant among retailers in the Republic of Serbia, and Gaur and Kesavan (2007) discovered a positive correlation between capital intensity and inventory turnover rate. One potential reason that could explain the difference is that the overall landscape of traditional retails has drastically shifted over the last decade due to disruptive technology innovation. We hypothesize that when firms invest working capital to a point beyond necessity, the apex of the curve, the marginal effects of investment becomes negative. In a rapidly changing business landscape, a flexible firm is more likely to adapt to contemporary trends and manage to survive from market upheaval. As a result, asset-light firms have the flexibility advantage, which enables them to make change rapidly and better satisfy current needs in the market.
+
+### Sales Growth
+
+The coefficient on sales growth is 0.213 (p=0.025). We reject the null hypothesis at 5% significance level and conclude that there is statistically significant evidence that suggests on average, as sales growth increases by 1%, inventory turnover rate increases by 0.213%, ceteris paribus.
+
+```{r}
+sg_function = function(x){
+  0.213*log(x)
+}
+
+curve(sg_function,
+      from = 0.1, 
+      to = 3, 
+      col = "blue", 
+      lwd = 2,,
+      xlab = "Sales Growth", 
+      ylab = "Predicted ln(Inventory Turnover)")
+```
+
+
+This result is consistent with previous literature by Grubor, Milicevic, and Mijic (2013) and Gaur and Kesavan (2007). Gaur and Kesavan stated that this positive effect of sales growth rate happens when retailers still have a large market opportunity when capacity and budget are scarce. Conversely, they also clarified the negative effect of sales rate potentially exists, which typically occurs when the situation is reversed. Our empirical results support the former scenario, suggesting that contemporary brick-and-mortar retailers may lack sufficient capacity to keep pace when a growth opportunity is present. As a result, inventory turnover rate increases as inventory is cleared out more rapidly.
+
+### Gross Profit Margin
+
+The coefficient on gross profit margin is -0.323 (p=0.023), which suggests that on average, as gross profit margin increase by 1%, inventory turnover rate decreases by 0.323%, holding all else constant.
+
+```{r}
+gpm_function = function(x){
+  -0.323*log(x)
+}
+
+curve(gpm_function,
+      from = 0.1, 
+      to = 3, 
+      col = "blue", 
+      lwd = 2,
+      xlab = "Gross Profit Margin", 
+      ylab = "Predicted ln(Inventory Turnover)")
+```
+
+This result aligns with all the literature we reviewed. In previous studies, scholars revealed a negative relationship between gross profit margin and inventory turnover rate. The hypothesis of Gaur and his colleagues (2005) is proven true that due to earns-turns trade-off, increasing gross profit margin would lead to a decrease of inventory turnover. 
+
+Following the follow-up study of Gaur and Kesavan (2007), we incorporate $Sales_{it}$ to test and examine the effect of economies of scale. The coefficient on it is 0.069 (p=0.04417). Our result suggests that as annual sales, which is a proxy for firm size, increase, retailers play by a different rule: the increase in annual sales offset the effect of gross profit margin. Firms have more power on their supply chain as the firm size increases, allowing them to lower cost and have higher gross profit margin without raising the price, which aligns with the economies of scale effect.
+
+```{r}
+small_eos_function = function(x){
+  -0.323*log(x) + 0.069*log(100000)
+}
+large_eos_function = function(x){
+  -0.323*log(x) + 0.069*log(100000*10)
+}
+plot(small_eos_function, from = 0.1, to = 3, col = "blue", lwd = 2, 
+     ylim = c(0, 2), # Adjust these numbers if needed to fit your exact range
+     xlab = "Gross Profit Margin", ylab = "Predicted ln(Inventory Turnover)",
+     main = "Earns-Turns Relationship & Scale Effects")
+
+curve(large_eos_function, from = 0.1, to = 3, col = "red", lwd = 2, add = TRUE)
+
+legend("topright", legend=c("Small Firm (Sales = 100k)", "Large Firm (Sales = 1M)"), 
+       col=c("blue", "red"), lwd=2)
+abline(h=1, lty = 3)
+```
+
+# Conclusion
+
+This study examines the determinants of inventory turnover rate (ITO) in the consumer retail sector, focusing on the effects of gross profit margin, capital intensity, and sales growth rate. The study utilizes the Wharton Research Data Service to collect annual financial data for 51 listed retail enterprises spanning the period from 2011 to 2024. A two-way fixed effects model incorporating a lagged dependent variable was employed as the primary specification, with other models under different assumptions adopted as a robustness check (sensitivity test) to ensure our result is not biased.
+
+The empirical findings reveal capital intensity exhibit a significant, nonlinear negative relationship with inventory turnover rate, with a continuously diminishing marginal effect. This finding departs from the positive linear associations documented in earlier studies and may reflect the structural transformation of the retail industry driven by digital innovation over the past decade, wherein asset-light firms demonstrate a competitive advantage in terms of operational agility and market responsiveness. Regarding sales growth, the study identifies a significant positive correlation between sales growth rate and inventory turnover rate, consistent with the conclusions drawn by Gaur and Kesavan (2007) and Grubor et al. (2013). The negative relationship between gross profit margin and inventory turnover rate is also confirmed in this study, lending support to the "profitability-turnover trade-off" hypothesis proposed by Gaur et al. (2005). Additionally, the result also indicates that large-scale retailers are able to leverage economies of scale to maintain healthy inventory turnover performance while simultaneously sustaining relatively higher gross profit margins.
+
+## Practical Implication
+
+The findings of this study carry several important practical implications for managers, executives, and policymakers in the consumer retail sector.
+
+First, in a classic monopolistic competition like traditional retail, large-scale retailers can leverage their market power to reduce cost of goods sold. At the same gross profit margin level, they have better inventory turnover rate performance compared to smaller retailers. This structural advantage allows the giants to maintain their barrier and force small-scale retailers to avoid homogeneous goods and services to survive. It reveals the fundamental divergence in strategy between retailers operating at different scales. Smaller retailers must leverage Porter's differentiation strategy and offer uniquely valued products and services to achieve a higher gross profit margin, whereas retailers operating on a large scale focus on velocity, optimizing inventory turnover as their primary driver of profitability.
+
+Moreover, our empirical result reveals operational rigidity and diminishing returns to capital investment in traditional retail. The apex of the curve is at x = 0.13, which suggests that in brick-and-mortar world today, any infrastructure investment beyond basic operational needs will negatively impact inventory turnover rate. However, it is worth noting that high inventory turnover rate is not universally optimal retail performance. Excessively elevating turnover rate leads to understocking, thereby higher supply chain costs like transportation costs. On top of that, frequent stockouts also lead to lost sales opportunities. As our result disclosed, inventory turnover spikes when opportunity presents, which suggests contemporary brick-and-mortar retailers may lack sufficient capacity to grasp the opportunity. Therefore, firms must actively seek an equilibrium that balances inventory turnover and capital intensity for stable operation. In addition, firms should also seek omnichannel fulfillment if the asset-light strategy is fostered to hedge the risk of lost sales in demand surprises. It enables just-in-time refilling by sourcing from multiple suppliers.
+
+
+## Limitations of the study
+While our model specifications provide consistent and robust results, certain methodological considerations deserve acknowledgment. The inclusion of a lagged dependent variable within a fixed effects framework introduces a known tension called dynamic panel bias, where the fixed effects transformation can create a small mechanical correlation between the lagged term and the error when T is small. While our data spans from 2011 to 2024, it is imbalanced. Due to random sampling, we did not acquire a completely balanced data set, and t ranges from 7 to 14. Consequently, least square estimator could bias downward in the estimate of the autoregressive parameter. Moreover, our feature selection involves subjective judgement. The original dataset from Wharton Research Data Service comprises more than 100 variables. We used domain knowledge and common sense to filter variables and then conduct forward selection, which could exclude unintuitive but significant features. Thus, future studies could adopt dimension reduction approaches like principal component analysis or UMAP or choose a sounder variable selection approach like incorporating L1 regularization, also known as LASSO, to get a sparse model. We note that the consistency of coefficient directions and significance levels across fixed effects model, random effects model, and Prais-Winsten model provides reassurance that neither issue materially distorts our core findings. However, financial data is notorious for its time-dependent variance, meaning ARCH effect could exist, for which the assumption of the Prais-Winsten model may not be legitimate.
+
+Another limitation centers on our sample composition. Our panel consists of 51 publicly traded firms, which represents only a portion of the broader consumer retail sector. Because the random sample includes firms that entered or exited the market during the study period, the panel is unbalanced with some firms contribute more years of data, meaning firms with longer histories carry more weight in estimation and could subtly influence the results. Additionally, small and private retailers that make up a large portion of the consumer retail sector are entirely absent from our data. As a result, our findings may not generalize well to the full spectrum of retail firms, particularly smaller or financially distressed ones that face very different operational dynamics.
+
+# References
+Breivik, J., Larsen, N., Thyholdt, S., and Myrland, O. (2021, August 26). Measuring inventory turnover efficiency using stochastic frontier analysis: building materials and hardware retail chains in Norway. International Journal of Systems Science Operations & Logistics. https://doi.org/10.1080/23302674.2021.1964635
+
+Financial Accounting Standards Board. (2016). Accounting Standards Update No. 2016-02—Leases (Topic 842): Section A—Amendments to the FASB Accounting Standards Codification. https://storage.fasb.org/ASU%202016-02_Section%20A.pdf
+
+Gaur, V., Fisher, M., & Raman, A. (2005, February 1). An econometric analysis of inventory turnover performance in retail services. Web of science.
+https://www.webofscience.com/wos/woscc/full-record/WOS:00022844140000
+
+Gaur, V. and Kesavan, S. (2007). The Effects of Firm Size and Sales Growth Rate on Inventory Turnover Performance in the U.S (2nd ed., pp. 25-52). Springer.
+
+Grubor, A., Milicevic, N., and Mijic, K. (2013, December 11). Empirical Analysis of Inventory Turnover Ratio in FMCG Retail Sector - Evidence from the Republic of Serbia. Engineering Economics. https://doi.org/10.5755/j01.ee.24.5.3546
+
+Yousaf, M. and Dehning, B. (2023, September 15). The effects of sales surprise on inventory turnover: An empirical study. Cogent Economics & Finance. 
+https://www.tandfonline.com/doi/full/10.1080/23322039.2023.2258696
+
+
+
+
+
